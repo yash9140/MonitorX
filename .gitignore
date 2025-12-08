@@ -8,7 +8,7 @@ dist/
 !gradle/wrapper/gradle-wrapper.jar
 
 # Environment files
-.env
+.env.example
 .env.local
 .env.production
 
