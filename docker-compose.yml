@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # MongoDB for logs database
+  mongo-logs:
+    image: mongo:7.0
+    container_name: monitorx-mongo-logs
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: logs_db
+    volumes:
+      - mongo-logs-data:/data/db
+    networks:
+      - monitorx-network
+
+  # MongoDB for metadata database
+  mongo-metadata:
+    image: mongo:7.0
+    container_name: monitorx-mongo-metadata
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: metadata_db
+    volumes:
+      - mongo-metadata-data:/data/db
+    networks:
+      - monitorx-network
+
+  # MonitorX Collector Service
+  collector-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: monitorx-collector-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - LOGS_DB_URI=mongodb://mongo-logs:27017/logs_db
+      - METADATA_DB_URI=mongodb://mongo-metadata:27017/metadata_db
+      - JWT_SECRET=${JWT_SECRET:-monitorx-super-secret-key-change-in-production}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      - SERVER_PORT=8080
+      - CORS_ORIGINS=http://localhost:3000
+    depends_on:
+      - mongo-logs
+      - mongo-metadata
+    networks:
+      - monitorx-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongo-logs-data:
+    driver: local
+  mongo-metadata-data:
+    driver: local
+
+networks:
+  monitorx-network:
+    driver: bridge

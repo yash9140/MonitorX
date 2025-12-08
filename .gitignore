@@ -1,0 +1,29 @@
+# MonitorX - Dependencies
+node_modules/
+.next/
+build/
+dist/
+.gradle/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MongoDB data
+data/
