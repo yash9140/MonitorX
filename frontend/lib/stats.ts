@@ -5,6 +5,8 @@ export interface StatsResponse {
     brokenApiCount: number;
     rateLimitViolations: number;
     averageLatency: number;
+    topSlowEndpoints: TopEndpoint[];
+    errorRateTimeSeries: TimeSeries[];
 }
 
 export interface TopEndpoint {

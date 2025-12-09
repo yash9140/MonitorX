@@ -4,13 +4,11 @@ import { useEffect, useState } from 'react';
 import StatsCard from '@/components/StatsCard';
 import TopSlowEndpointsChart from '@/components/TopSlowEndpointsChart';
 import ErrorRateChart from '@/components/ErrorRateChart';
-import { getStatsSummary, getTopSlowEndpoints, getErrorRateTimeSeries } from '@/lib/stats';
-import type { StatsResponse, TopEndpoint, TimeSeries } from '@/lib/stats';
+import { getStatsSummary } from '@/lib/stats';
+import type { StatsResponse } from '@/lib/stats';
 
 export default function DashboardPage() {
     const [stats, setStats] = useState<StatsResponse | null>(null);
-    const [topEndpoints, setTopEndpoints] = useState<TopEndpoint[]>([]);
-    const [errorRateSeries, setErrorRateSeries] = useState<TimeSeries[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -23,15 +21,8 @@ export default function DashboardPage() {
 
     const loadData = async () => {
         try {
-            const [statsData, endpoints, timeSeries] = await Promise.all([
-                getStatsSummary(),
-                getTopSlowEndpoints(10),
-                getErrorRateTimeSeries(24),
-            ]);
-
+            const statsData = await getStatsSummary();
             setStats(statsData);
-            setTopEndpoints(endpoints);
-            setErrorRateSeries(timeSeries);
             setError('');
         } catch (err: any) {
             setError('Failed to load dashboard data');
@@ -103,8 +94,8 @@ export default function DashboardPage() {
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <TopSlowEndpointsChart data={topEndpoints} />
-                <ErrorRateChart data={errorRateSeries} />
+                <TopSlowEndpointsChart data={stats?.topSlowEndpoints || []} />
+                <ErrorRateChart data={stats?.errorRateTimeSeries || []} />
             </div>
         </div>
     );
