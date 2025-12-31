@@ -51,9 +51,18 @@ tasks.withType<KotlinCompile> {
     kotlinOptions {
         freeCompilerArgs = listOf("-Xjsr305=strict")
         jvmTarget = "17"
+        // Reduce memory usage
+        incremental = true
     }
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Configure for low memory when run locally
+    maxHeapSize = "256m"
+    jvmArgs = listOf(
+        "-XX:+UseSerialGC",
+        "-XX:MaxMetaspaceSize=128m"
+    )
 }
+
