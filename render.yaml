@@ -1,0 +1,22 @@
+services:
+  # Backend Service
+  - type: web
+    name: monitorx-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: LOGS_DB_URI
+        sync: false
+      - key: METADATA_DB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 86400000
+      - key: SERVER_PORT
+        value: 8080
+      - key: CORS_ORIGINS
+        sync: false
+    healthCheckPath: /actuator/health

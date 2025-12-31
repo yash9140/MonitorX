@@ -141,7 +141,7 @@ MonitorX is a production-grade API monitoring and observability platform built w
    ┌──────▼──────┐     ┌─────▼─────┐
    │ MongoDB     │     │ MongoDB   │
    │ logs_db     │     │metadata_db│
-   │ (Port 27017)│     │(Port 27018│
+   │ Port 27017  │     │ Port 27018│
    └─────────────┘     └───────────┘
 ```
 

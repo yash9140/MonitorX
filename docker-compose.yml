@@ -44,7 +44,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-monitorx-super-secret-key-change-in-production}
       - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
       - SERVER_PORT=8080
-      - CORS_ORIGINS=http://localhost:3000
+      - CORS_ORIGINS=http://localhost:3000,http://frontend-dashboard:3000
     depends_on:
       - mongo-logs
       - mongo-metadata
@@ -52,6 +52,29 @@ services:
       - monitorx-network
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MonitorX Frontend Dashboard
+  frontend-dashboard:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: monitorx-frontend-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NODE_ENV=production
+    depends_on:
+      - collector-service
+    networks:
+      - monitorx-network
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" ]
       interval: 30s
       timeout: 10s
       retries: 3

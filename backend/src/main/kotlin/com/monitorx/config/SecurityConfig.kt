@@ -31,10 +31,10 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers("/auth/").permitAll()
+                    .requestMatchers("/actuator/").permitAll()
+                    .requestMatchers("/v3/api-docs/", "/swagger-ui/", "/swagger-ui.html").permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -52,7 +52,7 @@ class SecurityConfig(
         configuration.maxAge = 3600
 
         val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", configuration)
+        source.registerCorsConfiguration("/", configuration)
         return source
     }
 
