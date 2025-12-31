@@ -4,7 +4,7 @@
 # ==================================================================
 
 # Stage 1: Build
-FROM eclipse-te murin:17-jdk-alpine AS build
+FROM eclipse-temurin:17-jdk-alpine AS build
 
 WORKDIR /build
 
