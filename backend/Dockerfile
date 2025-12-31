@@ -8,23 +8,24 @@ COPY gradle gradle
 COPY gradlew .
 COPY gradlew.bat .
 
-# Make gradlew executable
-RUN chmod +x gradlew
+# Make gradlew executable and ensure Unix line endings
+RUN chmod +x gradlew && \
+    dos2unix gradlew 2>/dev/null || sed -i 's/\r$//' gradlew
 
 # Copy build files
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 
 # Download dependencies (with memory limits for free tier)
-RUN ./gradlew dependencies --no-daemon --max-workers=2 || true
+RUN sh gradlew dependencies --no-daemon --max-workers=2 || true
 
 # Copy source code
 COPY src src
 
 # Build application with memory optimizations for Render free tier
-RUN ./gradlew bootJar --no-daemon --max-workers=2 \
+RUN sh gradlew bootJar --no-daemon --max-workers=2 \
     -Dorg.gradle.jvmargs="-Xmx512m -XX:MaxMetaspaceSize=256m" \
-    || ./gradlew bootJar --no-daemon --max-workers=1 \
+    || sh gradlew bootJar --no-daemon --max-workers=1 \
     -Dorg.gradle.jvmargs="-Xmx384m -XX:MaxMetaspaceSize=192m"
 
 # Runtime stage
