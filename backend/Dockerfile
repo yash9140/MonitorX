@@ -1,96 +1,62 @@
-# ============================================
-# Multi-Stage Build for Spring Boot on Render
-# Optimized for 512MB RAM constraint
-# ============================================
+# ==================================================================
+# Production Dockerfile for Spring Boot + Kotlin on Render Free Tier
+# ==================================================================
 
-# ============================================
-# Stage 1: Build Stage
-# ============================================
-FROM eclipse-temurin:17-jdk-alpine AS builder
+# Stage 1: Build
+FROM eclipse-temurin:17-jdk-alpine AS build
 
-WORKDIR /workspace/app
+WORKDIR /build
 
-# Install required tools
-RUN apk add --no-cache wget unzip
+# Copy Gradle wrapper files (must exist in repo)
+COPY gradle gradle
+COPY gradlew .
+COPY gradlew.bat .
 
-# Download and install Gradle
-RUN wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip && \
-    unzip -q gradle-8.5-bin.zip && \
-    rm gradle-8.5-bin.zip
+# Ensure gradlew is executable
+RUN chmod +x ./gradlew
 
-ENV GRADLE_HOME=/workspace/app/gradle-8.5
-ENV PATH=$PATH:$GRADLE_HOME/bin
-
-# Copy Gradle configuration files FIRST (for caching)
+# Copy build configuration
 COPY gradle.properties .
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 
-# Pre-download dependencies (cached layer)
-# This layer is cached unless build files change
-RUN gradle dependencies --no-daemon --console=plain || true
+# Download dependencies first (cached layer)
+RUN ./gradlew dependencies --no-daemon --console=plain || echo "Dependencies partial download"
 
-# Copy application source
+# Copy source code
 COPY src src
 
-# Build the JAR with optimizations
-# -x test: Skip test execution (tests should run in CI/CD)
-# -x check: Skip static analysis
-# --no-daemon: Don't start background process
-# --console=plain: Reduce output overhead
-RUN gradle bootJar -x test -x check \
+# Build with verbose logging for debugging
+RUN ./gradlew bootJar -x test -x check \
     --no-daemon \
     --console=plain \
-    --stacktrace
+    --stacktrace \
+    --info \
+    || (echo "=== BUILD FAILED ===" && \
+    echo "=== Showing last 50 lines of output ===" && \
+    exit 1)
 
-# ============================================
-# Stage 2: Runtime Stage
-# ============================================
+# Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
-
-# Add metadata
-LABEL maintainer="MonitorX Team"
-LABEL version="1.0.0"
-LABEL description="MonitorX API Monitoring Backend"
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Runtime dependencies
 RUN apk add --no-cache curl && \
-    addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+    addgroup -S appgroup && \
+    adduser -S appuser -G appgroup
 
-# Copy JAR from builder
-COPY --from=builder --chown=appuser:appgroup \
-    /workspace/app/build/libs/*.jar app.jar
+# Copy JAR
+COPY --from=build --chown=appuser:appgroup /build/build/libs/*.jar app.jar
 
-# Switch to non-root user
 USER appuser
 
-# Expose application port
 EXPOSE 8080
 
-# JVM optimization for 512MB container
-# Total container RAM: 512MB
-# JVM heap: 384MB (75%)
-# Metaspace: 96MB
-# Direct memory: 32MB
-# = ~512MB total
-ENV JAVA_OPTS="\
-    -Xms128m \
-    -Xmx384m \
-    -XX:MaxMetaspaceSize=96m \
-    -XX:MaxDirectMemorySize=32m \
-    -XX:+UseSerialGC \
-    -XX:+TieredCompilation \
-    -XX:TieredStopAtLevel=1 \
-    -XX:+UseStringDeduplication \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Dspring.jmx.enabled=false"
+# Runtime JVM settings for 512MB container
+ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Run application
 ENTRYPOINT exec java $JAVA_OPTS -jar app.jar
