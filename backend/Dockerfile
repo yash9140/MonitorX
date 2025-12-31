@@ -3,27 +3,29 @@ FROM eclipse-temurin:17-jdk-alpine AS build
 
 WORKDIR /app
 
-# Install gradle directly (avoid wrapper issues)
-RUN apk add --no-cache wget unzip && \
-    wget https://services.gradle.org/distributions/gradle-8.5-bin.zip && \
-    unzip gradle-8.5-bin.zip && \
-    rm gradle-8.5-bin.zip
+# Copy gradle wrapper files
+COPY gradle gradle
+COPY gradlew .
+COPY gradlew.bat .
 
-ENV GRADLE_HOME=/app/gradle-8.5
-ENV PATH=$PATH:$GRADLE_HOME/bin
+# Make gradlew executable
+RUN chmod +x gradlew
 
 # Copy build files
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 
-# Download dependencies
-RUN gradle dependencies --no-daemon
+# Download dependencies (with memory limits for free tier)
+RUN ./gradlew dependencies --no-daemon --max-workers=2 || true
 
 # Copy source code
 COPY src src
 
-# Build application
-RUN gradle bootJar --no-daemon
+# Build application with memory optimizations for Render free tier
+RUN ./gradlew bootJar --no-daemon --max-workers=2 \
+    -Dorg.gradle.jvmargs="-Xmx512m -XX:MaxMetaspaceSize=256m" \
+    || ./gradlew bootJar --no-daemon --max-workers=1 \
+    -Dorg.gradle.jvmargs="-Xmx384m -XX:MaxMetaspaceSize=192m"
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
@@ -39,5 +41,8 @@ COPY --from=build /app/build/libs/*.jar app.jar
 # Expose port
 EXPOSE 8080
 
+# Set JVM options for Render free tier (512MB limit)
+ENV JAVA_OPTS="-Xmx384m -Xms128m -XX:MaxMetaspaceSize=128m"
+
 # Run application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
