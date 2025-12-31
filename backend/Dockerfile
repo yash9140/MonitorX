@@ -1,39 +1,45 @@
 # ==================================================================
-# Production Dockerfile for Spring Boot + Kotlin on Render Free Tier
+# Production Dockerfile for Spring Boot + Kotlin on Render Free Tier  
+# Handles missing Gradle wrapper by installing Gradle directly
 # ==================================================================
 
 # Stage 1: Build
-FROM eclipse-temurin:17-jdk-alpine AS build
+FROM eclipse-te murin:17-jdk-alpine AS build
 
 WORKDIR /build
 
-# Copy Gradle wrapper files (must exist in repo)
-COPY gradle gradle
-COPY gradlew .
-COPY gradlew.bat .
+# Install build tools
+RUN apk add --no-cache wget unzip
 
-# Ensure gradlew is executable
-RUN chmod +x ./gradlew
+# Download and install Gradle 8.5
+RUN wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip && \
+    unzip -q gradle-8.5-bin.zip && \
+    rm gradle-8.5-bin.zip
 
-# Copy build configuration
+ENV GRADLE_HOME=/build/gradle-8.5
+ENV PATH=$PATH:$GRADLE_HOME/bin
+
+# Copy Gradle configuration (memory limits applied)
 COPY gradle.properties .
 COPY build.gradle.kts .
 COPY settings.gradle.kts .
 
-# Download dependencies first (cached layer)
-RUN ./gradlew dependencies --no-daemon --console=plain || echo "Dependencies partial download"
+# Download dependencies (cached layer)
+RUN gradle dependencies --no-daemon --console=plain 2>&1 | head -100 || echo "Partial dependency download"
 
 # Copy source code
 COPY src src
 
-# Build with verbose logging for debugging
-RUN ./gradlew bootJar -x test -x check \
+# Build with enhanced error reporting
+# The --info flag will show compilation errors clearly
+RUN gradle bootJar -x test -x check \
     --no-daemon \
     --console=plain \
-    --stacktrace \
     --info \
-    || (echo "=== BUILD FAILED ===" && \
-    echo "=== Showing last 50 lines of output ===" && \
+    2>&1 | tee /build/build.log && echo "Build completed" \
+    || (echo "===== BUILD FAILED =====" && \
+    echo "Last 100 lines of build log:" && \
+    tail -100 /build/build.log && \
     exit 1)
 
 # Stage 2: Runtime
@@ -53,7 +59,7 @@ USER appuser
 
 EXPOSE 8080
 
-# Runtime JVM settings for 512MB container
+# Runtime JVM optimizations for 512MB container
 ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC -Djava.security.egd=file:/dev/./urandom"
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
