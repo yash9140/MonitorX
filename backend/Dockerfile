@@ -1,6 +1,6 @@
 # ==================================================================
 # Production Dockerfile for Spring Boot + Kotlin on Render Free Tier  
-# Handles missing Gradle wrapper by installing Gradle directly
+# Simplified for clear error visibility
 # ==================================================================
 
 # Stage 1: Build
@@ -25,22 +25,17 @@ COPY build.gradle.kts .
 COPY settings.gradle.kts .
 
 # Download dependencies (cached layer)
-RUN gradle dependencies --no-daemon --console=plain 2>&1 | head -100 || echo "Partial dependency download"
+RUN gradle dependencies --no-daemon --console=plain || true
 
 # Copy source code
 COPY src src
 
-# Build with enhanced error reporting
-# The --info flag will show compilation errors clearly
-RUN gradle bootJar -x test -x check \
-    --no-daemon \
-    --console=plain \
-    --info \
-    2>&1 | tee /build/build.log && echo "Build completed" \
-    || (echo "===== BUILD FAILED =====" && \
-    echo "Last 100 lines of build log:" && \
-    tail -100 /build/build.log && \
-    exit 1)
+# Build JAR - SIMPLIFIED for error visibility
+# If this fails, Docker build will stop here and show the error
+RUN gradle bootJar -x test -x check --no-daemon --stacktrace --info
+
+# Verify JAR was created
+RUN ls -lh /build/build/libs/
 
 # Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
