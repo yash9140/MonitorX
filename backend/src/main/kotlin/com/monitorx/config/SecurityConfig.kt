@@ -31,10 +31,10 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/auth/").permitAll()
-                    .requestMatchers("/actuator/").permitAll()
-                    .requestMatchers("/v3/api-docs/", "/swagger-ui/", "/swagger-ui.html").permitAll()
-                    .requestMatchers(HttpMethod.OPTIONS, "/").permitAll()
+                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -45,7 +45,11 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration()
-        configuration.allowedOrigins = listOf("http://localhost:3000")
+        configuration.allowedOrigins = listOf(
+            "http://localhost:3000",
+            "https://monitor-x-theta.vercel.app",
+            System.getenv("CORS_ORIGINS") ?: "http://localhost:3000"
+        ).distinct()
         configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
         configuration.allowedHeaders = listOf("*")
         configuration.allowCredentials = true
